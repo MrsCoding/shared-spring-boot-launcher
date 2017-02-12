@@ -2,12 +2,12 @@ package com.github.wcy123.shared.spring.boot;
 
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -25,6 +25,8 @@ public class JarFileExploder {
     private JarFile jarFile;
     private Path workDir;
     private JarOutputStream ownFile;
+
+    private List<URL> urls = new ArrayList<>();
 
     public JarFileExploder(String fileName) {
         this.fileName = Paths.get(fileName);
@@ -64,6 +66,10 @@ public class JarFileExploder {
             throw new NullPointerException("\"" + name + "\" is null!");
     }
 
+    public URL[] getUrls() {
+        return urls.toArray(new URL[urls.size()]);
+    }
+
     public void doIt(Path dirName) throws IOException {
         if(!dirName.toFile().isDirectory()) {
             throw new IllegalArgumentException("not a directory " +dirName);
@@ -72,8 +78,10 @@ public class JarFileExploder {
         this.workDir = dirName;
         final Path ownJarName = makePath(dirName, fileName);
         try(final JarFile jarFile = new JarFile(fileName.toFile());
-            final JarOutputStream ownFile = new JarOutputStream(new FileOutputStream(ownJarName.toFile()));
+                final JarOutputStream ownFile =
+                        new JarOutputStream(new FileOutputStream(ownJarName.toFile()))
         ){
+            urls.add(fileName.toFile().toURI().toURL());
             this.jarFile = jarFile;
             this.ownFile = ownFile;
             final Enumeration<JarEntry> entries = jarFile.entries();
@@ -88,11 +96,12 @@ public class JarFileExploder {
         if (jarEntry.getName().endsWith(".jar")) {
             final Path targetFileName = makePath(workDir, jarEntry.getName());
             targetFileName.getParent().toFile().mkdirs();
+            urls.add(targetFileName.toFile().toURI().toURL());
             if(targetFileName.toFile().exists()) {
                 info("already exits. skiping " + targetFileName);
             }else{
                 try (final InputStream inputStream = jarFile.getInputStream(jarEntry);
-                     final FileOutputStream outputStream = open(targetFileName);) {
+                        final FileOutputStream outputStream = open(targetFileName)) {
                     info("exploading " + targetFileName);
                     copy(inputStream, outputStream);
                 }
@@ -140,4 +149,5 @@ public class JarFileExploder {
     private void info(Object obj) {
         System.out.println(obj);
     }
+
 }
