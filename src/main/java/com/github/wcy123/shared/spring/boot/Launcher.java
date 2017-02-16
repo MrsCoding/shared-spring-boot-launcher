@@ -60,7 +60,7 @@ public class Launcher {
                 }
             });
             runnerThread.setContextClassLoader(classLoader);
-            Thread.sleep(index * 10000);
+            Thread.sleep(1000);
             runnerThread.start();
         } catch (NoSuchMethodException | IOException | ClassNotFoundException
                 | InterruptedException e) {
