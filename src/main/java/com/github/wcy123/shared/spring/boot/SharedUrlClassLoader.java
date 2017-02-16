@@ -99,15 +99,18 @@ public class SharedUrlClassLoader extends URLClassLoader {
     }
 
     private Class<?> superFindClass1(String name) throws ClassNotFoundException {
-        try {
-            if (cacheClassLoader.containsKey(name)) {
-                return cacheClassLoader.get(name).getClazz();
+        // synchronized (this)
+        {
+            try {
+                if (cacheClassLoader.containsKey(name)) {
+                    return cacheClassLoader.get(name).getClazz();
+                }
+                final Class<?> aClass = super.findClass(name);
+                cacheClassLoader.put(name, new CL(this, aClass));
+                return aClass;
+            } catch (ClassNotFoundException ex) {
+                throw ex;
             }
-            final Class<?> aClass = super.findClass(name);
-            cacheClassLoader.put(name, new CL(this, aClass));
-            return aClass;
-        } catch (ClassNotFoundException ex) {
-            throw ex;
         }
     }
 
