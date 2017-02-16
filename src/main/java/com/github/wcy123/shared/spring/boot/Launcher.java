@@ -6,14 +6,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.stream.Stream;
 
 public class Launcher {
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -25,43 +22,18 @@ public class Launcher {
             exploder.doIt(Paths.get(getWorkingDirectory()));
         }
 
-        Set<String> commonURLs = new HashSet<>();
-        for (int i = 0; i < exploders.length; ++i) {
-            JarFileExploder exploder = exploders[i];
-            final URL[] urls = exploder.getUrls();
-            Stream.of(urls)
-                    .forEach(url -> {
-                        if (isCommonJar(url)) {
-                            commonURLs.add(url.toString());
-                        }
-                    });
-        }
-
-        final URL[] commonURLs2 = new URL[commonURLs.size()];
-        int index = 0;
-        for (String commonURL : commonURLs) {
-            commonURLs2[index++] = new URL(commonURL);
-        }
-        ClassLoader commonClassLoader = new URLClassLoader(commonURLs2);
         CountDownLatch latch = new CountDownLatch(args.length);
         for (int i = 0; i < exploders.length; ++i) {
-            createThread(latch, exploders[i], i, commonURLs, commonClassLoader);
+            createThread(latch, exploders[i], i);
         }
         latch.await();
     }
 
-    private static boolean isCommonJar(URL url) {
-        return url.toString().contains("toxxxmcat-embed");
-    }
 
-    private static void createThread(CountDownLatch latch, JarFileExploder exploder, int index,
-            Set<String> commonURLs, ClassLoader commonClassLoader) {
+    private static void createThread(CountDownLatch latch, JarFileExploder exploder, int index) {
         try {
-            final URL[] urls =
-                    Stream.of(exploder.getUrls())
-                            .filter(url -> !commonURLs.contains(url.toString()))
-                            .toArray(size -> new URL[size]);
-            URLClassLoader classLoader = new URLClassLoader(urls, commonClassLoader);
+            final URL[] urls = exploder.getUrls();
+            URLClassLoader classLoader = new URLClassLoader(urls);
             final JarFile jarFile = new JarFile(urls[0].getFile());
             final Manifest manifest = jarFile.getManifest();
             String value = manifest.getMainAttributes().getValue("Start-Class");
@@ -99,12 +71,9 @@ public class Launcher {
     }
 
     private static String getWorkingDirectory() {
-        final String work_dir = System.getenv("WORK_DIR");
-        if (work_dir != null) {
-            return work_dir;
-        }
-        final Path path = Paths.get(System.getProperty("user.home"), ".your.spring.boot");
-        path.toFile().mkdirs();
-        return path.toString();
+        final String work_dir = Optional.ofNullable(System.getenv("WORK_DIR"))
+                .orElse(Paths.get(System.getProperty("user.home"), ".your.spring.boot").toString());
+        Paths.get(work_dir).toFile().mkdirs();
+        return work_dir;
     }
 }
